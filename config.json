@@ -1,0 +1,5 @@
+{
+    "root_results_dir": "/media/mdt20/Storage/data/ojsp2023",
+    "sparrkulee_download_dir": "/media/mdt20/Storage/data/large-auditory-eeg-dataset",
+    "icl_download_dir": "/media/mdt20/Storage/data/CND_datasets/EtardBrainstemAndComprehension/hdf5"
+}
