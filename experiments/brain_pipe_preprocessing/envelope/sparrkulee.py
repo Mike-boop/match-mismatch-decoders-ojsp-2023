@@ -80,7 +80,7 @@ def run_preprocessing_pipeline(
     ################
     logging.info("Retrieving BIDS layout...")
     data_loader = GlobLoader(
-        [os.path.join(root_dir, "sub-001", "*", "eeg", "*.bdf*")],
+        [os.path.join(root_dir, "sub-*", "*", "eeg", "*.bdf*")],
         filter_fns=[lambda x: "restingState" not in x],
         key="data_path",
     )
