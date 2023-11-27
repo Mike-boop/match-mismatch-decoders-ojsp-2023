@@ -26,7 +26,7 @@ class SessionDataset(Dataset):
         self.eeg_session_file = eeg_session_file
         self.attention_task = attention_task
         self.dtype = dtype
-
+        
         split, sub, trial, condition, stimulus = os.path.basename(eeg_session_file).split('_-_')[:5]
 
         if speaker is not None:

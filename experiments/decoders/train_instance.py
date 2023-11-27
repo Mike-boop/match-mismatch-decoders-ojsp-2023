@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     use_baseline = False
     eval_only = False
-    response = 'env'
+    response = 'ffr'
     seed = 0
 
 
@@ -68,7 +68,7 @@ if __name__ == '__main__':
         feature = 'env'
         fs = 64
     elif response == 'ffr':
-        feature = 'modulations'
+        feature = 'mods'
         fs = 512
     else:
         raise ValueError('Invalid response type!')
