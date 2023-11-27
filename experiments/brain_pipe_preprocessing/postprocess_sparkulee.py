@@ -40,9 +40,8 @@ if __name__ == '__main__':
     dev_eeg_files = sum(
         [glob.glob(os.path.join(preprocessed_data_dir, f'sub-{s:03d}*eeg.npy')) for s in dev_subjects], []
     )
-    dev_eeg_files = map(lambda x: os.path.basename(x), dev_eeg_files)
-    dev_stimuli = set(map(lambda x: x.split('_-_')[3], dev_eeg_files))
-
+    dev_eeg_files = list(map(lambda x: os.path.basename(x), dev_eeg_files))
+    dev_stimuli = map(lambda x: x.split('_-_')[3], list(dev_eeg_files))
 
     # dev data splitting & normalisation
     for each_stimulus in dev_stimuli:
@@ -72,22 +71,22 @@ if __name__ == '__main__':
             np.save(os.path.join(split_data_dir, 'test_-_'+os.path.basename(each_dev_data_file)), dev_data[test_onset:test_offset])
 
     
-    # 2. heldout data normalisation
-    heldout_subjects = np.arange(72,86)
-    heldout_eeg_files = sum(
-        [glob.glob(os.path.join(preprocessed_data_dir, f'sub-{s:03d}*eeg.npy')) for s in heldout_subjects], []
-    )
-    heldout_eeg_files = list(map(lambda x: os.path.basename(x), heldout_eeg_files))
-    heldout_stimuli = map(lambda x: x.split('_-_')[3], heldout_eeg_files)
+    # # 2. heldout data normalisation
+    # heldout_subjects = np.arange(72,86)
+    # heldout_eeg_files = sum(
+    #     [glob.glob(os.path.join(preprocessed_data_dir, f'sub-{s:03d}*eeg.npy')) for s in heldout_subjects], []
+    # )
+    # heldout_eeg_files = list(map(lambda x: os.path.basename(x), heldout_eeg_files))
+    # heldout_stimuli = map(lambda x: x.split('_-_')[3], heldout_eeg_files)
 
-    for each_heldout_file in list(heldout_eeg_files):
+    # for each_heldout_file in list(heldout_eeg_files):
 
-        heldout_data = zscore(np.load(os.path.join(preprocessed_data_dir, each_heldout_file)), axis=0)
-        np.save(os.path.join(heldout_data_dir, 'heldout_-_'+os.path.basename(each_heldout_file)), heldout_data)
+    #     heldout_data = zscore(np.load(os.path.join(preprocessed_data_dir, each_heldout_file)), axis=0)
+    #     np.save(os.path.join(heldout_data_dir, 'heldout_-_'+os.path.basename(each_heldout_file)), heldout_data)
 
-    for each_heldout_stimulus in list(heldout_stimuli):
+    # for each_heldout_stimulus in list(heldout_stimuli):
 
-        heldout_stim_file = each_heldout_stimulus+f'_-_{feature}.npy'
+    #     heldout_stim_file = each_heldout_stimulus+f'_-_{feature}.npy'
 
-        heldout_data = zscore(np.load(os.path.join(preprocessed_data_dir, heldout_stim_file)), axis=0)
-        np.save(os.path.join(heldout_data_dir, 'heldout_-_'+heldout_stim_file), heldout_data)
+    #     heldout_data = zscore(np.load(os.path.join(preprocessed_data_dir, heldout_stim_file)), axis=0)
+    #     np.save(os.path.join(heldout_data_dir, 'heldout_-_'+heldout_stim_file), heldout_data)
