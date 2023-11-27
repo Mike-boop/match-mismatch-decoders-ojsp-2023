@@ -37,8 +37,7 @@ from experiments.brain_pipe_preprocessing.utils.sparrkulee_helpers import (
 
 def run_preprocessing_pipeline(
     root_dir,
-    preprocessed_stimuli_dir,
-    preprocessed_eeg_dir,
+    preprocessed_data_path,
     nb_processes=-1,
     overwrite=False,
     log_path="sparrKULee.log",
@@ -64,8 +63,7 @@ def run_preprocessing_pipeline(
     #########
     # PATHS #
     #########
-    os.makedirs(preprocessed_eeg_dir, exist_ok=True)
-    os.makedirs(preprocessed_stimuli_dir, exist_ok=True)
+    os.makedirs(preprocessed_data_path, exist_ok=True)
 
     ###########
     # LOGGING #
@@ -95,7 +93,7 @@ def run_preprocessing_pipeline(
             GammatoneEnvelope(output_key='envelope_data'),
             ResamplePoly(64, "envelope_data", "stimulus_sr"),
             DefaultSave(
-                preprocessed_stimuli_dir,
+                preprocessed_data_path,
                 to_save={
                     "env": "envelope_data",
                 },
@@ -130,7 +128,7 @@ def run_preprocessing_pipeline(
         ResamplePoly(64, axis=1),
         Transpose(data_keys=['data']),
         DefaultSave(
-            preprocessed_eeg_dir,
+            preprocessed_data_path,
             {"eeg": "data"},
             overwrite=overwrite,
             clear_output=True,
@@ -165,7 +163,7 @@ if __name__ == "__main__":
 
     sparrkulee_download_dir = config['sparrkulee_download_dir']
     preprocessed_stimuli_path = os.path.join(config['root_results_dir'], "preprocessed_data_sparrkulee", "env")
-    preprocessed_eeg_path = preprocessed_stimuli_path
+    preprocessed_data_path = os.path.join(config['root_results_dir'], "preprocessed_data_sparrkulee", "env")
     
     n_processes = 8
     overwrite = True
@@ -176,7 +174,7 @@ if __name__ == "__main__":
     run_preprocessing_pipeline(
         sparrkulee_download_dir,
         preprocessed_stimuli_path,
-        preprocessed_eeg_path,
+        preprocessed_data_path,
         n_processes,
         overwrite,
         logpath

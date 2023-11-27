@@ -9,7 +9,7 @@ from scipy.stats import zscore
 
 if __name__ == '__main__':
 
-    response = 'ffr' # change to 'env' if postprocessing env data
+    response = 'env' # change to 'env' if postprocessing env data
 
     if response == 'ffr':
         fs = 512
