@@ -2,6 +2,11 @@ import torch.nn as nn
 import torch
 
 class DilatedConvNet(nn.Module):
+
+    '''
+    This is the dilated convolutional model of Accou et al which
+    we used as a baseline
+    '''
     
     def __init__(self,
                  n_eeg_channels=64,
@@ -64,6 +69,12 @@ class DilatedConvNet(nn.Module):
     
 
 class DilatedConvNetSymmetrisedOutputs(nn.Module):
+
+
+    '''
+    This is the architecture which we used for the envelope-based
+    and FFR-based decoders.
+    '''
     
     def __init__(self,
                  n_eeg_channels=64,

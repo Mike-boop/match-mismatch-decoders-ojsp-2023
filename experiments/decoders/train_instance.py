@@ -23,18 +23,18 @@ def testing_loop(model, loss_fn, split_data_dir, test_subjects, feature_name, fs
 
     for subject in test_subjects:
         
-        subject_session_files = glob.glob(os.path.join(split_data_dir, f'test_-_{subject}*eeg.npy'))
+        subject_session_files = glob.glob(os.path.join(split_data_dir, f'test_-_sub-{subject:03d}*eeg.npy'))
         
         if len(subject_session_files) == 0:
             continue
 
-        test_datasets = get_session_datasets_from_session_files(subject_session_files,feature_name, fs=fs, sub_specific_stimuli=sub_specific_stimuli)
+        test_datasets = get_session_datasets_from_session_files(subject_session_files,feature_name, fs=fs)
         test_datasets = ConcatDataset(test_datasets)
         test_loader = DataLoader(test_datasets, batch_size=64, num_workers=1)
 
-        _, acc, loss, n_examples = validation_loop(model, loss_fn, test_loader, num_iter='unknown', device=device)
+        acc, loss = validation_loop(model, loss_fn, test_loader, device=device)
 
-        results_dict[subject] = {'acc':acc, 'loss':loss, 'n_examples': n_examples}
+        results_dict[f'sub-{subject:03d}'] = {'acc':acc, 'loss':loss}
 
     return results_dict
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
 
     if response == 'env':
-        feature = 'envelope'
+        feature = 'env'
         fs = 64
     elif response == 'ffr':
         feature = 'modulations'
@@ -81,7 +81,8 @@ if __name__ == '__main__':
 
     # set up directories
     split_data_dir = os.path.join(config['root_results_dir'], "split_data_sparrkulee", response)
-    model_savedir = config['results_dir'][response]['trained_models']
+    model_savedir = os.path.join(config['root_results_dir'], response, 'trained_models')
+    os.makedirs(model_savedir, exist_ok=True)
     logger = CSVLogger(os.path.join(model_savedir, logfile))
     
 
@@ -93,6 +94,7 @@ if __name__ == '__main__':
 
     model = model_handle()
     model = model.to(device)
+    loss_fn = torch.nn.BCEWithLogitsLoss()
 
     num_epochs = 50
     patience = 5
@@ -104,7 +106,6 @@ if __name__ == '__main__':
         # set up dataloaders
         train_datasets = get_session_datasets_from_session_files(
             glob.glob(os.path.join(split_data_dir, 'train*eeg.npy')),
-            sub_specific_stimuli=False,
             feature_name=feature,
             shuffle=True,
             fs=fs
@@ -112,7 +113,6 @@ if __name__ == '__main__':
 
         val_datasets = get_session_datasets_from_session_files(
             glob.glob(os.path.join(split_data_dir, 'val*eeg.npy')),
-            sub_specific_stimuli=False,
             feature_name=feature,
             shuffle=True,
             fs=fs
@@ -123,7 +123,7 @@ if __name__ == '__main__':
         train_loader = DataLoader(train_dataset, batch_size=64, num_workers=4, pin_memory=True, shuffle=True)
 
         val_dataset = ConcatDataset(val_datasets)
-        val_loader = DataLoader(val_dataset, batch_size=64, num_workers=1, pin_memory=True)
+        val_loader = DataLoader(val_dataset, batch_size=64, num_workers=1, pin_memory=True, drop_last=True)
 
         # initialise model, specify optimizer and loss function
         model.apply(init_weights)
@@ -148,7 +148,7 @@ if __name__ == '__main__':
             scheduler.step()
 
             # validate
-            val_acc, val_loss, _ = validation_loop(model, loss_fn, val_loader, device=device)
+            val_acc, val_loss = validation_loop(model, loss_fn, val_loader, device=device)
             
             # logging
             logger.log('val_acc', val_acc, epoch)

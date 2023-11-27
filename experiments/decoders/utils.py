@@ -16,6 +16,7 @@ class SessionDataset(Dataset):
             dtype=np.float32,
             hop_length=None,
             spacing=None,
+            speaker = None,
             window_length=None,
             attention_task=False,
             distractor=False):
@@ -26,20 +27,21 @@ class SessionDataset(Dataset):
         self.attention_task = attention_task
         self.dtype = dtype
 
-        sub, trial, condition, stimulus = os.path.basename(eeg_session_file).split('_-_')[:4]
+        split, sub, trial, condition, stimulus = os.path.basename(eeg_session_file).split('_-_')[:5]
 
-        if distractor:
+        if speaker is not None:
             self.story = np.load(
-                os.path.join(os.path.dirname(eeg_session_file), f'{stimulus}_distractor_-_{feature_name}.npy')
+                os.path.join(os.path.dirname(eeg_session_file), f'{split}_-_{stimulus}_{speaker}_-_{feature_name}.npy')
             )
         else:
             self.story = np.load(
-                os.path.join(os.path.dirname(eeg_session_file), f'{stimulus}_story_-_{feature_name}.npy')
+                os.path.join(os.path.dirname(eeg_session_file), f'{split}_-_{stimulus}_-_{feature_name}.npy')
             )
+
 
         if attention_task:
             self.distractor = np.load(
-                os.path.join(os.path.dirname(eeg_session_file), f'{stimulus}_distractor_-_{feature_name}.npy')
+                os.path.join(os.path.dirname(eeg_session_file), f'{split}_-_{stimulus}_distractor_-_{feature_name}.npy')
             )
 
         self.eeg = np.load(eeg_session_file)
@@ -84,7 +86,7 @@ class SessionDataset(Dataset):
         return (eeg_segment, matched_segment, mismatched_segment)
 
         
-def get_session_datasets_from_session_files(session_files_list, feature_name, fs=64, shuffle=True, hop_length=None, attention_task=False, distractor=False, window_length=None, shift=None):
+def get_session_datasets_from_session_files(session_files_list, feature_name, fs=64, shuffle=True, hop_length=None, attention_task=False, distractor=False, window_length=None):
 
     # to feed to ChainDataset constructor
     datasets = [
@@ -94,8 +96,7 @@ def get_session_datasets_from_session_files(session_files_list, feature_name, fs
                        hop_length=hop_length,
                        attention_task=attention_task,
                        distractor=distractor,
-                       window_length=window_length,
-                       shift=shift)
+                       window_length=window_length)
 
         for file in session_files_list
         ]
@@ -142,7 +143,7 @@ def training_loop(model, optimizer, loss_fn, train_loader, tqdm_description_prea
             train_loop.set_description(tqdm_description_preamble+" "+f"{b}it/{len(train_loader.dataset)}")
             train_loop.set_postfix(loss=np.mean(losses), acc=np.mean(accs))
     
-    return b, model.state_dict(), np.mean(accs), np.mean(losses)
+    return model.state_dict(), np.mean(accs), np.mean(losses)
 
 
 def validation_loop(model, loss_fn, val_loader, device='cuda'):
@@ -188,7 +189,7 @@ def validation_loop(model, loss_fn, val_loader, device='cuda'):
         acc=torch.sum(accs)/len(accs)
         tmp = np.hstack(tmp)
 
-        return b, tmp.sum()/len(tmp), np.mean(losses), len(tmp)
+        return tmp.sum()/len(tmp), np.mean(losses)
     
 
 def init_weights(m):
