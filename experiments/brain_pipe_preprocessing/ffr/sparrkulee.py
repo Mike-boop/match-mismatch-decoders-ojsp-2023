@@ -1,3 +1,8 @@
+'''
+Modified from the examples/exporl/sparrKULee.py script of brain_pipe (Accou & Bollens)
+https://github.com/exporl/brain_pipe
+'''
+
 import json
 import logging
 import os
@@ -33,8 +38,7 @@ from experiments.brain_pipe_preprocessing.utils.sparrkulee_helpers import (
 
 def run_preprocessing_pipeline(
     root_dir,
-    preprocessed_stimuli_dir,
-    preprocessed_eeg_dir,
+    preprocessed_data_path,
     nb_processes=-1,
     overwrite=False,
     log_path="sparrKULee.log",
@@ -45,10 +49,8 @@ def run_preprocessing_pipeline(
     ----------
     root_dir: str
         The root directory of the dataset.
-    preprocessed_stimuli_dir:
+    preprocessed_data_path:
         The directory where the preprocessed stimuli should be saved.
-    preprocessed_eeg_dir:
-        The directory where the preprocessed EEG should be saved.
     nb_processes: int
         The number of processes to use. If -1, the number of processes is
         automatically determined.
@@ -60,8 +62,7 @@ def run_preprocessing_pipeline(
     #########
     # PATHS #
     #########
-    os.makedirs(preprocessed_eeg_dir, exist_ok=True)
-    os.makedirs(preprocessed_stimuli_dir, exist_ok=True)
+    os.makedirs(preprocessed_data_path, exist_ok=True)
 
     ###########
     # LOGGING #
@@ -76,7 +77,7 @@ def run_preprocessing_pipeline(
     ################
     logging.info("Retrieving BIDS layout...")
     data_loader = GlobLoader(
-        [os.path.join(root_dir, "sub-*", "*", "eeg", "*.bdf*")],
+        [os.path.join(root_dir, "sub-001", "*", "eeg", "*.bdf*")],
         filter_fns=[lambda x: "restingState" not in x],
         key="data_path",
     )
@@ -90,9 +91,9 @@ def run_preprocessing_pipeline(
             LoadStimuli(load_fn=temp_stimulus_load_fn),
             EnvelopeModulations(output_key='modulations_data', target_fs=512),
             DefaultSave(
-                preprocessed_stimuli_dir,
+                preprocessed_data_path,
                 to_save={
-                    "modulations": "modulations_data",
+                    "mods": "modulations_data",
                 },
                 overwrite=overwrite,
                 clear_output=False
@@ -128,7 +129,7 @@ def run_preprocessing_pipeline(
         ResamplePoly(512, axis=1),
         Transpose(data_keys=['data']),
         DefaultSave(
-            preprocessed_eeg_dir,
+            preprocessed_data_path,
             {"eeg": "data"},
             overwrite=overwrite,
             clear_output=True,
@@ -162,19 +163,17 @@ if __name__ == "__main__":
         config = json.load(f)
 
     sparrkulee_download_dir = config['sparrkulee_download_dir']
-    preprocessed_stimuli_path = os.path.join(config['root_results_dir'], "preprocessed_data_sparrkulee", "ffr")
-    preprocessed_eeg_path = preprocessed_stimuli_path
+    preprocessed_data_path = os.path.join(config['root_results_dir'], "preprocessed_data_sparrkulee", "ffr")
     
     n_processes = 8
-    overwrite = False
+    overwrite = True
 
     logpath = os.path.join(os.path.dirname(__file__), 'sparrkulee-ffr-preprocessing.log')
 
     # Run the preprocessing pipeline
     run_preprocessing_pipeline(
         sparrkulee_download_dir,
-        preprocessed_stimuli_path,
-        preprocessed_eeg_path,
+        preprocessed_data_path,
         n_processes,
         overwrite,
         logpath

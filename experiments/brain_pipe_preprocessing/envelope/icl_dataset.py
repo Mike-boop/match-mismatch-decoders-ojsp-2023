@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 
 from scipy.signal import butter
 
@@ -13,6 +14,7 @@ from brain_pipe.save.default import DefaultSave
 from brain_pipe.preprocessing.stimulus.audio.envelope import GammatoneEnvelope
 from brain_pipe.dataloaders.path import GlobLoader
 from brain_pipe.runner.default import DefaultRunner
+from brain_pipe.utils.log import default_logging, DefaultFormatter
 
 from experiments.brain_pipe_preprocessing.utils.pipeline_steps import (
     InterpNewChannels, DropChannels, ReorderChannels, Transpose
@@ -23,7 +25,13 @@ from experiments.brain_pipe_preprocessing.utils.icl_helpers import (
 from experiments.brain_pipe_preprocessing.utils.sparrkulee_helpers import sparrkulee_ch_names
 
 
-def run_audio_preprocessing_pipeline(icl_download_dir, preprocessed_data_savedir, nb_processes=-1, overwrite=False):
+def run_audio_preprocessing_pipeline(icl_download_dir, preprocessed_data_savedir, nb_processes=-1, overwrite=False, log_path='icl-env-preprocessing.log'):
+
+    # LOGGING
+    handler = logging.FileHandler(log_path)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(DefaultFormatter())
+    default_logging(handlers=[handler])
 
     stimulus_steps = DefaultPipeline(
         steps=[
@@ -55,7 +63,13 @@ def run_audio_preprocessing_pipeline(icl_download_dir, preprocessed_data_savedir
     )
 
 
-def run_eeg_preprocessing_pipeline(icl_download_dir, preprocessed_data_savedir, nb_processes=-1, overwrite=False):
+def run_eeg_preprocessing_pipeline(icl_download_dir, preprocessed_data_savedir, nb_processes=-1, overwrite=False, log_path='icl-env-preprocessing.log'):
+
+    # LOGGING
+    handler = logging.FileHandler(log_path)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(DefaultFormatter())
+    default_logging(handlers=[handler])
 
     missing_channels = [x for x in sparrkulee_ch_names if x not in icl_ch_names]
     extra_channels = [x for x in icl_ch_names if x not in sparrkulee_ch_names]

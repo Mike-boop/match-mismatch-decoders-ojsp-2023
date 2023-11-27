@@ -19,28 +19,28 @@ icl_ch_names = [
 
 def icl_metadata_key_fn(data_dict):
 
-    if "savename" in data_dict:
-        return "savename"
+    if "fname_prefix" in data_dict:
+        return "fname_prefix"
 
-    raise ValueError("No savename in the data_dict.")
+    raise ValueError("No fname_prefix in the data_dict.")
 
 
 def icl_stimulus_load_fn(path):
 
     condition = os.path.basename(os.path.dirname(path))
     _, part, suffix = os.path.splitext(os.path.basename(path))[0].split('_')
-    savename = f'{condition}_part_{part}-{suffix}.npy'
+    fname_prefix = f'{condition}_part_{part}-{suffix}'
 
     fs, audio = wavfile.read(path)
-    return {'data':audio, 'sr':fs, 'savename':savename}
+    return {'data':audio, 'sr':fs, 'fname_prefix':fname_prefix}
 
 
 def icl_filename_fn(data_dict, feature_name="", set_name=None):
 
     if 'savename' in data_dict:
-        return data_dict['savename']
+        return data_dict['savename']+f'_-_{feature_name}.npy'
     if 'stimulus_savename' in data_dict:
-        return data_dict['stimulus_savename']
+        data_dict['stimulus_savename']+f'_-_{feature_name}.npy'
 
 
 class ICLEEGLoader(DataLoader):
@@ -92,13 +92,12 @@ class ICLEEGLoader(DataLoader):
             part = int(part.replace('part_', ''))
             sub = int(os.path.splitext(os.path.basename(h5_key[0]))[0].replace('P',''))
 
-            savename = f'sub-{sub:03d}_-_trial-{part:03d}_-_{condition}_-_{condition}-part_{part}-story'
+            fname_prefix = f'sub-{sub:03d}_-_trial-{part:03d}_-_{condition}_-_{condition}-part_{part}-story'
             if condition in ['fM', 'fW']:
-                savename+= f'_-_{condition}-part_{part}-distractor_-_eeg.npy'
-            else:
-                savename+= f'_-_eeg.npy'
+                fname_prefix+= f'_-_{condition}-part_{part}-distractor'
 
-            data_dict = {'data':f[h5_key[1]][:], 'ch_names':[x.decode("utf-8") for x in f['ch_names'][:]], 'mne_montage':'easycap-M1', 'data_fs': f['srate'][:], 'savename':savename, 'data_path':savename}
+
+            data_dict = {'data':f[h5_key[1]][:], 'ch_names':[x.decode("utf-8") for x in f['ch_names'][:]], 'mne_montage':'easycap-M1', 'data_fs': f['srate'][:], 'fname_prefix':fname_prefix}
 
         return data_dict
     

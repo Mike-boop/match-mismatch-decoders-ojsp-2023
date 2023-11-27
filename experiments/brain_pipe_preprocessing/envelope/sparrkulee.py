@@ -1,3 +1,7 @@
+'''
+Modified from the examples/exporl/sparrKULee.py script of brain_pipe (Accou & Bollens)
+https://github.com/exporl/brain_pipe
+'''
 import json
 import logging
 import os
@@ -76,7 +80,7 @@ def run_preprocessing_pipeline(
     ################
     logging.info("Retrieving BIDS layout...")
     data_loader = GlobLoader(
-        [os.path.join(root_dir, "sub-*", "*", "eeg", "*.bdf*")],
+        [os.path.join(root_dir, "sub-001", "*", "eeg", "*.bdf*")],
         filter_fns=[lambda x: "restingState" not in x],
         key="data_path",
     )
@@ -164,7 +168,7 @@ if __name__ == "__main__":
     preprocessed_eeg_path = preprocessed_stimuli_path
     
     n_processes = 8
-    overwrite = False
+    overwrite = True
 
     logpath = os.path.join(os.path.dirname(__file__), 'sparrkulee-env-preprocessing.log')
 

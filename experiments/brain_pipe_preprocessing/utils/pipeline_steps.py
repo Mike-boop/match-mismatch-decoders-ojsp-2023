@@ -191,7 +191,6 @@ class InterpNewChannels(PipelineStep):
 
     def __call__(self, data_dict):
         data_dict = super(InterpNewChannels, self).__call__(data_dict)
-
         M = get_interpolation_matrix(data_dict['ch_names'], self.channels_to, montage_from=data_dict['mne_montage'], montage_to=self.montage_to)
 
         for from_key, to_key in self.data_keys.items():

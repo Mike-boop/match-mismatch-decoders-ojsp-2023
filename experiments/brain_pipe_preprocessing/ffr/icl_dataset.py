@@ -24,7 +24,7 @@ from experiments.brain_pipe_preprocessing.utils.icl_helpers import (
 from experiments.brain_pipe_preprocessing.utils.sparrkulee_helpers import sparrkulee_ch_names
 
 
-def run_audio_preprocessing_pipeline(icl_download_dir, preprocessed_data_savedir, nb_processes=-1, overwrite=False, log_path='ICL_env.log'):
+def run_audio_preprocessing_pipeline(icl_download_dir, preprocessed_data_savedir, nb_processes=-1, overwrite=False, log_path='icl-ffr-preprocessing.log'):
 
     # LOGGING
     handler = logging.FileHandler(log_path)
@@ -40,7 +40,7 @@ def run_audio_preprocessing_pipeline(icl_download_dir, preprocessed_data_savedir
             DefaultSave(
                 preprocessed_data_savedir,
                 to_save={
-                    "modulations": "modulations_data"
+                    "mods": "modulations_data"
                 },
                 overwrite=overwrite,
                 filename_fn=icl_filename_fn
