@@ -14,7 +14,7 @@ from experiments.decoders.utils import SessionDataset
 torch.set_default_dtype(torch.float32)
 
     
-def get_decoder_outputs(decoder: torch.nn.Module, eeg_session_file, feature, fs=64, device='cuda'):
+def get_decoder_outputs_for_session(decoder, eeg_session_file, feature, fs=64, device='cuda'):
 
     session_dataset = SessionDataset(eeg_session_file, feature_name=feature, fs=fs, dtype=np.float32)
     loader = DataLoader(session_dataset, batch_size=512, num_workers=1)
@@ -42,6 +42,54 @@ def get_decoder_outputs(decoder: torch.nn.Module, eeg_session_file, feature, fs=
     return np.hstack(predictions), np.hstack(targets)
 
 
+def get_all_decoder_outputs(
+        decoder_ckpt_path,
+        split_data_dir,
+        outputs_savedir,
+        device='cuda',
+        split='test'):
+
+    # DECODER INFO FROM CKPT FNAME
+    instance = os.path.basename(decoder_ckpt_path).split('inst-')[1]
+    instance = int(instance.replace('.pt', ''))
+    response = os.path.basename(os.path.dirname(os.path.dirname(decoder_ckpt_path)))
+    print(response)
+
+    # GET FEATURE AND SAMPLE RATE
+    if response == 'env':
+        feature = 'env'
+        fs = 64
+    elif response == 'ffr':
+        feature = 'mods'
+        fs = 512
+    else:
+        raise ValueError('Invalid response type!')
+
+    # LOAD WEIGHTS
+    if 'baseline' in decoder_ckpt_path:
+        decoder = DilatedConvNet()
+        output_files_prefix = f'baseline_-_{instance:02d}_-_'
+    else:
+        decoder = DilatedConvNetSymmetrisedOutputs()
+        output_files_prefix = f'{response}_-_{instance:02d}_-_'
+        
+    decoder.load_state_dict(torch.load(decoder_ckpt_path, map_location=torch.device(device)))
+    decoder.to(device)
+
+    # GET DECODER OUTPUTS
+    session_files = glob.glob(os.path.join(split_data_dir, f'{split}_-_*_-_eeg.npy'))
+
+    # GET OUTPUTS FOR ALL EEG SESSIONS
+    for eeg_session_file in session_files:
+        predictions, targets = get_decoder_outputs_for_session(decoder, eeg_session_file, feature, fs=fs, device='cuda')
+
+        np.savez(
+            os.path.join(outputs_savedir, output_files_prefix+'_-_'+os.path.basename(eeg_session_file).replace('eeg', 'outputs').replace('.npy', '.npz')),
+            predictions=predictions,
+            targets=targets
+            )
+
+
 if __name__ == '__main__':
 
     use_baseline = False
@@ -53,62 +101,55 @@ if __name__ == '__main__':
         config = json.load(f)
 
 
-    if use_baseline:
-        model_handle = DilatedConvNet
-        checkpointfile = f'baseline_ckpt_{seed:02d}.pt'
-        logfile = f'baseline_training_log_{seed:02d}.csv'
-        eval_file = f'baseline_eval_{seed:02d}.csv'
-    else:
-        model_handle = DilatedConvNetSymmetrisedOutputs
-        checkpointfile = f'{response}_ckpt_{seed:02d}.pt'
-        logfile = f'{response}_training_log_{seed:02d}.csv'
-        eval_file = f'{response}_eval_{seed:02d}.csv'
+    # get the outputs for the test portion of the development dataset
+    for model, response in [('baseline', 'env'), ('env', 'env'), ('ffr', 'ffr')]:
 
+        split_data_dir = os.path.join(config['root_results_dir'], "split_data_sparrkulee", response)
+        outputs_savedir = os.path.join(config['root_results_dir'], 'decoder_outputs_sparrkulee', response)
+        os.makedirs(outputs_savedir, exist_ok=True)
+        trained_models_dir = os.path.join(config['root_results_dir'], response, 'trained_models')
 
-    if response == 'env':
-        feature = 'envelope'
-        fs = 64
-    elif response == 'ffr':
-        feature = 'modulations'
-        fs = 512
-    else:
-        raise ValueError('Invalid response type!')
+        for each_checkpoint in glob.glob(os.path.join(trained_models_dir, f'{model}*.pt')):
 
+            get_all_decoder_outputs(
+                each_checkpoint,
+                split_data_dir,
+                outputs_savedir,
+                device='cuda',
+                split='test')
+            
 
-    # set up directories
-    split_data_dir = os.path.join(config['root_results_dir'], "split_data_sparrkulee", response)
-    model_savedir = config['results_dir'][response]['trained_models']
-    outputs_savedir = os.path.join(os.path.join(config['root_results_dir'], "decoder_outputs_sparrkulee", response))
+    # get the outputs for the heldout dataset
+    for model, response in [('baseline', 'env'), ('env', 'env'), ('ffr', 'ffr')]:
 
-    eeg_session_files = glob.glob(os.path.join(split_data_dir, 'test*eeg.npy'))
-    
+        split_data_dir = os.path.join(config['root_results_dir'], "heldout_data_sparrkulee", response)
+        outputs_savedir = os.path.join(config['root_results_dir'], 'decoder_outputs_sparrkulee', response)
+        os.makedirs(outputs_savedir, exist_ok=True)
+        trained_models_dir = os.path.join(config['root_results_dir'], response, 'trained_models')
 
-    # experiment settings
-    if torch.cuda.is_available():
-        device = 'cuda'
-    else:
-        device = 'cpu'
+        for each_checkpoint in glob.glob(os.path.join(trained_models_dir, f'{model}*.pt')):
 
-    model = model_handle()
-    model = model.to(device)
-    model.load_state_dict(torch.load(os.path.join(model_savedir, checkpointfile), map_location=torch.device(device)))
+            get_all_decoder_outputs(
+                each_checkpoint,
+                split_data_dir,
+                outputs_savedir,
+                device='cuda',
+                split='heldout')
+            
 
+    # get the outputs for the icl dataset
+    for model, response in [('baseline', 'env'), ('env', 'env'), ('ffr', 'ffr')]:
 
-    # get the sigmoid outputs
+        split_data_dir = os.path.join(config['root_results_dir'], "heldout_data_icl", response)
+        outputs_savedir = os.path.join(config['root_results_dir'], 'decoder_outputs_icl', response)
+        os.makedirs(outputs_savedir, exist_ok=True)
+        trained_models_dir = os.path.join(config['root_results_dir'], response, 'trained_models')
 
-    for each_file in eeg_session_files:
+        for each_checkpoint in glob.glob(os.path.join(trained_models_dir, f'{model}*.pt')):
 
-        predictions, targets = get_decoder_outputs(model, each_file, feature, fs=fs, device=device)
-
-        if use_baseline:
-            np.savez(
-                os.path.join(outputs_savedir, f'inst-{seed:02d}_-_baseline_-_'+os.path.basename(each_file).replace('eeg', 'outputs')),
-                predictions=predictions,
-                targets=targets
-                )
-        else:
-            np.savez(
-                os.path.join(outputs_savedir, f'inst-{seed:02d}_-_{response}_-_'+os.path.basename(each_file).replace('eeg', 'outputs')),
-                predictions=predictions,
-                targets=targets
-                )
+            get_all_decoder_outputs(
+                each_checkpoint,
+                split_data_dir,
+                outputs_savedir,
+                device='cuda',
+                split='heldout')
