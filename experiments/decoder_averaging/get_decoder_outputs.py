@@ -17,7 +17,8 @@ torch.set_default_dtype(torch.float32)
 def get_decoder_outputs_for_session(decoder, eeg_session_file, feature, fs=64, device='cuda'):
 
     session_dataset = SessionDataset(eeg_session_file, feature_name=feature, fs=fs, dtype=np.float32)
-    loader = DataLoader(session_dataset, batch_size=512, num_workers=1)
+    # if outputs are to be averaged, important not to shuffle the data!
+    loader = DataLoader(session_dataset, batch_size=512, num_workers=1, shuffle=False)
 
     predictions = []
     targets = []
@@ -53,7 +54,7 @@ def get_all_decoder_outputs(
     instance = os.path.basename(decoder_ckpt_path).split('inst-')[1]
     instance = int(instance.replace('.pt', ''))
     response = os.path.basename(os.path.dirname(os.path.dirname(decoder_ckpt_path)))
-    print(response)
+
 
     # GET FEATURE AND SAMPLE RATE
     if response == 'env':
@@ -68,10 +69,10 @@ def get_all_decoder_outputs(
     # LOAD WEIGHTS
     if 'baseline' in decoder_ckpt_path:
         decoder = DilatedConvNet()
-        output_files_prefix = f'baseline_-_{instance:02d}_-_'
+        output_files_prefix = f'baseline_-_{instance:02d}'
     else:
         decoder = DilatedConvNetSymmetrisedOutputs()
-        output_files_prefix = f'{response}_-_{instance:02d}_-_'
+        output_files_prefix = f'{response}_-_{instance:02d}'
         
     decoder.load_state_dict(torch.load(decoder_ckpt_path, map_location=torch.device(device)))
     decoder.to(device)
