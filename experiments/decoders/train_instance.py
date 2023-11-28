@@ -39,31 +39,44 @@ def testing_loop(model, loss_fn, split_data_dir, test_subjects, feature_name, fs
     return results_dict
 
 
-if __name__ == '__main__':
+def train_model(
+        config_path,
+        model,
+        inst=0,
+        loss_fn=torch.nn.BCEWithLogitsLoss(),
+        response='env',
+        device='cuda',
+        train_kwargs = {'max_epochs':50, 'patience':5},
+        eval_only=False
+        ):
+    
+    # SEED
+    random.seed(inst)
+    np.random.seed(inst)
+    torch.random.manual_seed(inst)
 
-    use_baseline = False
-    eval_only = False
-    response = 'ffr'
-    seed = 0
 
-
-    config_path = '/home/mdt20/Code/match-mismatch-decoders-ojsp-2023/config.json'
+    # LOAD CONFIG
     with open(config_path, 'r') as f:
         config = json.load(f)
 
-
-    if use_baseline:
-        model_handle = DilatedConvNet
-        checkpointfile = f'baseline_ckpt_{seed:02d}.pt'
-        logfile = f'baseline_training_log_{seed:02d}.csv'
-        eval_file = f'baseline_eval_{seed:02d}.csv'
+    # RESULTS FILENAMES
+    if isinstance(model, DilatedConvNet): # if using baseline model
+        checkpointfile = f'baseline_ckpt_inst-{inst:02d}.pt'
+        logfile = f'baseline_training_log_inst-{inst:02d}.csv'
+        eval_file = f'baseline_eval_inst-{inst:02d}.csv'
     else:
-        model_handle = DilatedConvNetSymmetrisedOutputs
-        checkpointfile = f'{response}_ckpt_{seed:02d}.pt'
-        logfile = f'{response}_training_log_{seed:02d}.csv'
-        eval_file = f'{response}_eval_{seed:02d}.csv'
+        checkpointfile = f'{response}_ckpt_inst-{inst:02d}.pt'
+        logfile = f'{response}_training_log_inst-{inst:02d}.csv'
+        eval_file = f'{response}_eval_inst-{inst:02d}.csv'
 
+    # DATA DIRECTORIES
+    split_data_dir = os.path.join(config['root_results_dir'], "split_data_sparrkulee", response)
+    model_savedir = os.path.join(config['root_results_dir'], response, 'trained_models')
+    os.makedirs(model_savedir, exist_ok=True)
+    logger = CSVLogger(os.path.join(model_savedir, logfile))
 
+    # GET FEATURE AND SAMPLE RATE
     if response == 'env':
         feature = 'env'
         fs = 64
@@ -72,38 +85,23 @@ if __name__ == '__main__':
         fs = 512
     else:
         raise ValueError('Invalid response type!')
-
-
-    # set the random seed
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.random.manual_seed(seed)
-
-    # set up directories
-    split_data_dir = os.path.join(config['root_results_dir'], "split_data_sparrkulee", response)
-    model_savedir = os.path.join(config['root_results_dir'], response, 'trained_models')
-    os.makedirs(model_savedir, exist_ok=True)
-    logger = CSVLogger(os.path.join(model_savedir, logfile))
     
 
-    # experiment settings
-    if torch.cuda.is_available():
-        device = 'cuda'
-    else:
-        device = 'cpu'
-
-    model = model_handle()
+    # PREPARE DNN, OPTIMIZER, EARLY STOPPING
     model = model.to(device)
-    loss_fn = torch.nn.BCEWithLogitsLoss()
+    model.apply(init_weights)
 
-    num_epochs = 50
-    patience = 5
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, eps=1e-7)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=7, gamma=0.1)
 
+    best_loss = np.inf
+    patience_counter=0
+    best_weights = None
+    
 
-    # train model
     if not eval_only:
-
-        # set up dataloaders
+    
+        # LOAD DATA
         train_datasets = get_session_datasets_from_session_files(
             glob.glob(os.path.join(split_data_dir, 'train*eeg.npy')),
             feature_name=feature,
@@ -118,36 +116,24 @@ if __name__ == '__main__':
             fs=fs
         )
 
-
         train_dataset = ConcatDataset(train_datasets)
         train_loader = DataLoader(train_dataset, batch_size=64, num_workers=4, pin_memory=True, shuffle=True)
 
         val_dataset = ConcatDataset(val_datasets)
         val_loader = DataLoader(val_dataset, batch_size=64, num_workers=1, pin_memory=True, drop_last=True)
 
-        # initialise model, specify optimizer and loss function
-        model.apply(init_weights)
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, eps=1e-7)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=7, gamma=0.1)
-        loss_fn = torch.nn.BCEWithLogitsLoss()
+        # PERFORM TRAINING
+        for epoch in range(train_kwargs['max_epochs']):
 
-        # early stopping params
-        best_loss = np.inf
-        patience_counter=0
-        best_weights = None
-
-
-        # start training
-        for epoch in range(num_epochs):
-
-            # train
-            model_state_dict, train_acc, train_loss = training_loop(model, optimizer, loss_fn, train_loader=train_loader, tqdm_description_preamble=f"Epoch [{epoch}/{num_epochs}]", device=device)
-
-            # shuffle files
+            # step epoch
+            model_state_dict, train_acc, train_loss = training_loop(model,
+                                                                    optimizer,
+                                                                    loss_fn,
+                                                                    train_loader=train_loader,
+                                                                    tqdm_description_preamble=f"Epoch [{epoch}/{train_kwargs['max_epochs']}]",
+                                                                    device=device)
             scheduler.step()
-
-            # validate
             val_acc, val_loss = validation_loop(model, loss_fn, val_loader, device=device)
             
             # logging
@@ -160,7 +146,7 @@ if __name__ == '__main__':
             if val_loss >= best_loss:
                 patience_counter+=1
 
-                if patience_counter >= patience:
+                if patience_counter >= train_kwargs['patience']:
                     break
 
             else:
@@ -172,7 +158,7 @@ if __name__ == '__main__':
                 torch.save(best_weights, os.path.join(model_savedir, checkpointfile))
 
 
-    # evaluate on testing portion of development dataset
+    # EVALUATE
     model.load_state_dict(torch.load(os.path.join(model_savedir, checkpointfile), map_location=torch.device(device)))
     
     test_subjects = np.arange(1, 72)
@@ -181,3 +167,21 @@ if __name__ == '__main__':
 
     with open(os.path.join(model_savedir, eval_file), 'w') as f:
         json.dump(results_dict, f, indent=4)
+
+
+
+if __name__ == '__main__':
+
+    config_path = '/home/mdt20/Code/match-mismatch-decoders-ojsp-2023/config.json'
+    model = DilatedConvNetSymmetrisedOutputs()
+    inst = 0
+
+    response = 'env'
+    eval_only = False
+
+    # train model and evaluate on test split of development dataset
+    train_model(config_path,
+                model,
+                inst=inst,
+                response=response,
+                eval_only=eval_only)
