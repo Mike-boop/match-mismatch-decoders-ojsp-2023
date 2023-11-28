@@ -39,7 +39,7 @@ def testing_loop(model, loss_fn, split_data_dir, test_subjects, feature_name, fs
     return results_dict
 
 
-def train_model(
+def train_instance(
         config_path,
         model,
         inst=0,
@@ -180,7 +180,7 @@ if __name__ == '__main__':
     eval_only = False
 
     # train model and evaluate on test split of development dataset
-    train_model(config_path,
+    train_instance(config_path,
                 model,
                 inst=inst,
                 response=response,
